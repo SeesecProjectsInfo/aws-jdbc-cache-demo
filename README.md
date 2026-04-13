@@ -35,7 +35,7 @@ A production-ready Spring Boot REST API that demonstrates **automatic database f
               ┌──────▼──┐  ┌───▼───────┐
               │ Primary │  │ Secondary │
               │  MySQL  │  │   MySQL   │
-              │ (:3306) │  │  (:3307)  │
+              │ (:3308) │  │  (:3307)  │
               └─────────┘  └───────────┘
 ```
 
@@ -165,21 +165,8 @@ java -jar target/failover-api-1.0.0.jar
 
 ### Step 3: Test the API
 
-```bash
-# Check health (should show PRIMARY database active)
-curl http://localhost:8080/health | jq
-
-# Get all users (seeded data)
-curl http://localhost:8080/users | jq
-
-# Get a specific user
-curl http://localhost:8080/users/1 | jq
-
-# Create a new user
-curl -X POST http://localhost:8080/users \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Frank Castle", "email": "frank@example.com"}' | jq
-```
+Open the included premium dashboard!
+Navigate to **http://localhost:8080** to see live system metrics, active databases, and failover/cache trackers.
 
 ---
 
@@ -187,10 +174,7 @@ curl -X POST http://localhost:8080/users \
 
 ### Step 1: Verify Primary is Active
 
-```bash
-curl http://localhost:8080/health | jq '.database'
-# Expected: { "activeDatabase": "PRIMARY", "circuitBreakerState": "CLOSED" }
-```
+Go to your dashboard (http://localhost:8080) and wait until it says the active database is `PRIMARY`.
 
 ### Step 2: Stop the Primary Database
 
@@ -200,22 +184,8 @@ docker-compose stop mysql-primary
 
 ### Step 3: Make a Request (Triggers Failover)
 
-```bash
-# First few requests record failures; after 3 failures, failover triggers
-curl http://localhost:8080/users/1 | jq
-
-# Check health — should now show SECONDARY
-curl http://localhost:8080/health | jq '.database'
-# Expected: { "activeDatabase": "SECONDARY", "circuitBreakerState": "OPEN" }
-```
-
-Watch the application logs — you'll see:
-```
-⚠️ Primary DB failure #1/3. Circuit still CLOSED.
-⚠️ Primary DB failure #2/3. Circuit still CLOSED.
-🔴 Circuit breaker OPENED — 3 consecutive failures. Routing to secondary DB.
-🔴 FAILOVER: Primary DB is down. Switching to SECONDARY database.
-```
+Use the API tester at the bottom of the dashboard. Click "Fetch User Layer" a few times.
+The circuit breaker will recognize failures and switch to `SECONDARY` automatically. 
 
 ### Step 4: Restart Primary (Auto-Recovery)
 
@@ -223,54 +193,7 @@ Watch the application logs — you'll see:
 docker-compose start mysql-primary
 ```
 
-Within 15-30 seconds, the scheduled health check detects recovery:
-```
-⏱️ Circuit breaker cooldown expired. Transitioning to HALF_OPEN.
-✅ Circuit breaker CLOSED — primary DB recovered successfully.
-🔄 RECOVERY (scheduled): Primary DB is back online! Switching back.
-```
-
-### Step 5: Verify Recovery
-
-```bash
-curl http://localhost:8080/health | jq '.database'
-# Expected: { "activeDatabase": "PRIMARY", "circuitBreakerState": "CLOSED" }
-```
-
----
-
-## 🧪 Demo: Caching in Action
-
-### Step 1: First Request (Cache Miss → DB Query)
-
-```bash
-curl http://localhost:8080/users/1
-# Logs: 🔴 CACHE MISS for key 'user:1'
-# Logs: 💾 Cached user 'Alice Johnson' with key 'user:1' (TTL: 60s)
-```
-
-### Step 2: Second Request (Cache Hit → No DB Query)
-
-```bash
-curl http://localhost:8080/users/1
-# Logs: 🟢 CACHE HIT for key 'user:1'
-# (No database query executed — served from Redis!)
-```
-
-### Step 3: Check Cache Metrics
-
-```bash
-curl http://localhost:8080/health | jq '.cache'
-# { "redis": "CONNECTED", "cacheHits": 1, "cacheMisses": 1, "cacheHitRate": "50.0%" }
-```
-
-### Step 4: Wait 60s (TTL Expires) → Cache Miss Again
-
-```bash
-# After 60 seconds...
-curl http://localhost:8080/users/1
-# Logs: 🔴 CACHE MISS for key 'user:1' (TTL expired)
-```
+Within 15-30 seconds, the scheduled health check detects recovery. You will see the dashboard seamlessly snap back to `PRIMARY`.
 
 ---
 
@@ -292,51 +215,6 @@ curl http://localhost:8080/users/1
 |--------|-------------------|--------------------------------------|
 | GET    | `/health`         | Active DB, circuit breaker, cache    |
 | GET    | `/metrics/custom` | Detailed failover & cache metrics    |
-
-### Request/Response Examples
-
-**Create User:**
-```json
-POST /users
-{
-  "name": "John Doe",
-  "email": "john@example.com"
-}
-// Response: 201 Created
-{
-  "id": 6,
-  "name": "John Doe",
-  "email": "john@example.com",
-  "createdAt": "2025-01-01T12:00:00",
-  "updatedAt": "2025-01-01T12:00:00"
-}
-```
-
-**Health Check:**
-```json
-GET /health
-{
-  "status": "UP",
-  "timestamp": "2025-01-01T12:00:00Z",
-  "database": {
-    "activeDatabase": "PRIMARY",
-    "circuitBreakerState": "CLOSED",
-    "circuitBreakerDetails": "state=CLOSED, failures=0/3, cooldown=30s"
-  },
-  "cache": {
-    "redis": "CONNECTED",
-    "cacheHits": 15,
-    "cacheMisses": 5,
-    "cacheHitRate": "75.0%"
-  },
-  "failover": {
-    "totalFailovers": 0,
-    "totalRecoveries": 0,
-    "primaryQueryCount": 20,
-    "secondaryQueryCount": 0
-  }
-}
-```
 
 ---
 
@@ -362,7 +240,7 @@ All configuration is in `src/main/resources/application.yml`:
 
 | Property                           | Default       | Description                       |
 |------------------------------------|---------------|-----------------------------------|
-| `datasource.primary.url`           | `localhost:3306` | Primary MySQL connection       |
+| `datasource.primary.url`           | `localhost:3308` | Primary MySQL connection       |
 | `datasource.secondary.url`         | `localhost:3307` | Secondary MySQL connection     |
 | `failover.cooldown-seconds`        | `30`          | Wait before retrying primary     |
 | `failover.failure-threshold`       | `3`           | Failures before opening circuit  |
@@ -373,33 +251,6 @@ All configuration is in `src/main/resources/application.yml`:
 
 ---
 
-## 📊 Metrics Tracked
-
-| Metric               | Description                              |
-|----------------------|------------------------------------------|
-| `totalFailovers`     | Times system switched to secondary DB    |
-| `totalRecoveries`    | Times system recovered back to primary   |
-| `cacheHits`          | Requests served from Redis cache         |
-| `cacheMisses`        | Requests that required a DB query        |
-| `primaryQueryCount`  | Total queries routed to primary DB       |
-| `secondaryQueryCount`| Total queries routed to secondary DB     |
-
----
-
-## 🛑 Stopping Everything
-
-```bash
-# Stop the Spring Boot app (Ctrl+C)
-
-# Stop and remove all containers
-docker-compose down
-
-# Stop and remove containers + data volumes
-docker-compose down -v
-```
-
----
-
 ## 📝 Key Design Decisions
 
 1. **Pure JDBC** — No JPA/Hibernate. Direct SQL via `JdbcTemplate` for full control.
@@ -407,11 +258,3 @@ docker-compose down -v
 3. **Circuit breaker** — Avoids hammering a dead primary. Configurable threshold and cooldown.
 4. **Graceful degradation** — If Redis is down, the app still works (DB-only mode). If primary DB is down, secondary takes over.
 5. **Scheduled recovery** — Background task probes primary every 15s during failover, so recovery doesn't depend on user traffic.
-
----
-
-## 📄 License
-
-MIT License — Use freely for learning and production.
-#   a w s - j d b c - c a c h e - d e m o  
- 
