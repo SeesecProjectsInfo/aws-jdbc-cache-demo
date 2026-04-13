@@ -1,0 +1,75 @@
+# ============================================
+# Smart DB Failover API - Application Config
+# ============================================
+
+server:
+  port: 8080
+
+# -------------------------------------------
+# Primary MySQL Database Configuration
+# -------------------------------------------
+datasource:
+  primary:
+    url: jdbc:mysql://localhost:3308/smartdb_primary?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: root
+    password: rootpass
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # -------------------------------------------
+  # Secondary (Failover) MySQL Database Config
+  # -------------------------------------------
+  secondary:
+    url: jdbc:mysql://localhost:3307/smartdb_secondary?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: root
+    password: rootpass
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+# -------------------------------------------
+# Failover Configuration
+# -------------------------------------------
+failover:
+  # How long to wait before retrying the primary DB after a failover (in seconds)
+  cooldown-seconds: 30
+  # Maximum number of consecutive failures before triggering failover
+  failure-threshold: 3
+  # Connection validation timeout (in seconds)
+  validation-timeout-seconds: 5
+
+# -------------------------------------------
+# Redis Cache Configuration
+# -------------------------------------------
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+  cache:
+    type: redis
+    redis:
+      time-to-live: 60000  # TTL in milliseconds (60 seconds)
+      cache-null-values: false
+
+# -------------------------------------------
+# Logging Configuration
+# -------------------------------------------
+logging:
+  level:
+    root: INFO
+    com.smartdb.failoverapi: DEBUG
+    com.smartdb.failoverapi.failover: DEBUG
+    com.smartdb.failoverapi.cache: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# -------------------------------------------
+# Actuator (Health & Metrics)
+# -------------------------------------------
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always

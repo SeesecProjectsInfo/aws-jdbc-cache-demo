@@ -1,0 +1,12 @@
+target/
+.build-tools/
+*.class
+*.jar
+*.log
+.idea/
+*.iml
+.settings/
+.classpath
+.project
+.DS_Store
+Thumbs.db

@@ -1,0 +1,88 @@
+# ============================================
+
+# ============================================
+# Docker Compose — Smart DB Failover API
+# ============================================
+# Spins up:
+#   - mysql-primary   → Primary MySQL on port 3306
+#   - mysql-secondary → Secondary MySQL on port 3307
+#   - redis           → Redis cache on port 6379
+#
+# Usage:
+#   docker-compose up -d
+#   docker-compose down
+#
+# To simulate primary DB failure:
+#   docker-compose stop mysql-primary
+#
+# To restore primary DB:
+#   docker-compose start mysql-primary
+
+services:
+  # -------------------------------------------
+  # Primary MySQL Database
+  # -------------------------------------------
+  mysql-primary:
+    image: mysql:8.0
+    container_name: smartdb-primary
+    ports:
+      - "3308:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: smartdb_primary
+    volumes:
+      - ./sql/init-primary.sql:/docker-entrypoint-initdb.d/init.sql
+      - mysql_primary_data:/var/lib/mysql
+    networks:
+      - smartdb-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # -------------------------------------------
+  # Secondary (Failover) MySQL Database
+  # -------------------------------------------
+  mysql-secondary:
+    image: mysql:8.0
+    container_name: smartdb-secondary
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: smartdb_secondary
+    volumes:
+      - ./sql/init-secondary.sql:/docker-entrypoint-initdb.d/init.sql
+      - mysql_secondary_data:/var/lib/mysql
+    networks:
+      - smartdb-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # -------------------------------------------
+  # Redis Cache
+  # -------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: smartdb-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - smartdb-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  mysql_primary_data:
+  mysql_secondary_data:
+
+networks:
+  smartdb-network:
+    driver: bridge

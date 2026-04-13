@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart DB Failover Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f111a;
+            --card-bg: rgba(25, 28, 41, 0.6);
+            --card-border: rgba(255, 255, 255, 0.05);
+            --primary: #4ade80;
+            --danger: #f87171;
+            --warning: #fbbf24;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.5);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.15), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(74, 222, 128, 0.1), transparent 25%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(to right, #60a5fa, #4ade80);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 0 15px var(--accent-glow);
+        }
+
+        .card-header {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .metric {
+            margin-bottom: 1rem;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .status-healthy { background: rgba(74, 222, 128, 0.1); color: var(--primary); border: 1px solid rgba(74, 222, 128, 0.2); }
+        .status-down { background: rgba(248, 113, 113, 0.1); color: var(--danger); border: 1px solid rgba(248, 113, 113, 0.2); }
+        .status-warning { background: rgba(251, 191, 36, 0.1); color: var(--warning); border: 1px solid rgba(251, 191, 36, 0.2); }
+
+        .pulse {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background-color: currentColor;
+            box-shadow: 0 0 8px currentColor;
+            animation: pulse-animation 2s infinite;
+        }
+
+        @keyframes pulse-animation {
+            0% { opacity: 0.5; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+            100% { opacity: 0.5; transform: scale(0.8); }
+        }
+
+        .api-tester {
+            grid-column: 1 / -1;
+            margin-top: 1rem;
+        }
+        
+        .form-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            color: white;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            border-color: var(--accent);
+        }
+
+        button {
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(to right, #3b82f6, #2563eb);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            overflow-x: auto;
+            color: #9cdcfe;
+            font-size: 0.9rem;
+            border: 1px solid var(--card-border);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Smart DB Failover Platform</h1>
+        <p class="subtitle">Live System Telemetry & Metrics</p>
+    </header>
+
+    <div class="dashboard">
+        <!-- Database Status -->
+        <div class="card">
+            <div class="card-header">
+                Database Network
+                <span id="system-status" class="status-badge status-healthy"><div class="pulse"></div> ONLINE</span>
+            </div>
+            
+            <div class="metric">
+                <div class="metric-label">Active Database</div>
+                <div class="metric-value" id="active-db">Loading...</div>
+            </div>
+
+            <div class="metric">
+                <div class="metric-label">Circuit Breaker State</div>
+                <div class="metric-value" id="circuit-state">Loading...</div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;" id="circuit-details"></div>
+            </div>
+        </div>
+
+        <!-- Failover Metrics -->
+        <div class="card">
+            <div class="card-header">Traffic & Failovers</div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="metric">
+                    <div class="metric-label">Primary Queries</div>
+                    <div class="metric-value" id="queries-primary">0</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Secondary Queries</div>
+                    <div class="metric-value" id="queries-secondary">0</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Total Failovers</div>
+                    <div class="metric-value" id="total-failovers" style="color: var(--danger);">0</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Total Recoveries</div>
+                    <div class="metric-value" id="total-recoveries" style="color: var(--primary);">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cache Status -->
+        <div class="card">
+            <div class="card-header">
+                Redis Caching
+                <span id="redis-status" class="status-badge status-healthy">CONNECTED</span>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="metric">
+                    <div class="metric-label">Cache Hits (Fast)</div>
+                    <div class="metric-value" id="cache-hits" style="color: var(--primary);">0</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Cache Misses (DB)</div>
+                    <div class="metric-value" id="cache-misses" style="color: var(--warning);">0</div>
+                </div>
+            </div>
+            <div class="metric" style="margin-top: 1rem;">
+                <div class="metric-label">Cache Hit Rate</div>
+                <div class="metric-value" id="cache-hit-rate">0%</div>
+            </div>
+        </div>
+
+        <!-- API Tester -->
+        <div class="card api-tester">
+            <div class="card-header">Test API / Cache Behaviour</div>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Fetch a user. The first request is a Cache Miss (hits the DB). Subsequent requests within 60s are Cache Hits.</p>
+            
+            <div class="form-group">
+                <input type="number" id="userId" placeholder="Enter User ID (1-5 are seeded)..." value="1">
+                <button onclick="fetchUser()">Fetch User Layer</button>
+            </div>
+            <pre id="api-response">// Response will appear here...</pre>
+        </div>
+    </div>
+
+    <script>
+        // Fetch health data every 1.5 seconds
+        async function fetchHealth() {
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+                
+                // Active DB
+                const dbElement = document.getElementById('active-db');
+                dbElement.innerText = data.database.activeDatabase;
+                if (data.database.activeDatabase === 'PRIMARY') {
+                    dbElement.style.color = 'var(--primary)';
+                    document.getElementById('system-status').className = 'status-badge status-healthy';
+                    document.getElementById('system-status').innerHTML = '<div class="pulse"></div> ONLINE';
+                } else if (data.database.activeDatabase === 'SECONDARY') {
+                    dbElement.style.color = 'var(--danger)';
+                    document.getElementById('system-status').className = 'status-badge status-down';
+                    document.getElementById('system-status').innerHTML = '<div class="pulse"></div> FAILOVER';
+                }
+
+                // Circuit Breaker
+                const cbState = data.database.circuitBreakerState;
+                const stateEl = document.getElementById('circuit-state');
+                stateEl.innerText = cbState;
+                stateEl.style.color = cbState === 'CLOSED' ? 'var(--primary)' : 
+                                      cbState === 'OPEN' ? 'var(--danger)' : 'var(--warning)';
+                document.getElementById('circuit-details').innerText = data.database.circuitBreakerDetails;
+
+                // Metrics
+                document.getElementById('queries-primary').innerText = data.failover.primaryQueryCount;
+                document.getElementById('queries-secondary').innerText = data.failover.secondaryQueryCount;
+                document.getElementById('total-failovers').innerText = data.failover.totalFailovers;
+                document.getElementById('total-recoveries').innerText = data.failover.totalRecoveries;
+
+                // Cache
+                document.getElementById('cache-hits').innerText = data.cache.cacheHits;
+                document.getElementById('cache-misses').innerText = data.cache.cacheMisses;
+                document.getElementById('cache-hit-rate').innerText = data.cache.cacheHitRate || '0%';
+                
+                const redisStatus = document.getElementById('redis-status');
+                if (data.cache.redis === 'CONNECTED') {
+                    redisStatus.className = 'status-badge status-healthy';
+                    redisStatus.innerText = 'CONNECTED';
+                } else {
+                    redisStatus.className = 'status-badge status-down';
+                    redisStatus.innerText = 'DISCONNECTED';
+                }
+
+            } catch (error) {
+                console.error('Error fetching health:', error);
+                document.getElementById('system-status').className = 'status-badge status-down';
+                document.getElementById('system-status').innerHTML = 'SERVER OFFLINE';
+            }
+        }
+
+        async function fetchUser() {
+            const id = document.getElementById('userId').value;
+            const output = document.getElementById('api-response');
+            
+            output.innerText = "Fetching...";
+            try {
+                const start = performance.now();
+                const response = await fetch(`/users/${id}`);
+                const data = await response.json();
+                const time = Math.round(performance.now() - start);
+                
+                output.innerText = `⏱️ Time taken: ${time}ms\n\n` + JSON.stringify(data, null, 2);
+            } catch (error) {
+                output.innerText = "Error: " + error.message;
+            }
+        }
+
+        // Start polling
+        setInterval(fetchHealth, 1500);
+        fetchHealth(); // Initial fetch
+    </script>
+</body>
+</html>
