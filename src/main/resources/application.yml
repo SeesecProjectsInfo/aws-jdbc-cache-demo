@@ -11,8 +11,8 @@ server:
 datasource:
   primary:
     url: jdbc:mysql://localhost:3308/smartdb_primary?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-    username: root
-    password: rootpass
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:rootpass}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   # -------------------------------------------
@@ -20,8 +20,8 @@ datasource:
   # -------------------------------------------
   secondary:
     url: jdbc:mysql://localhost:3307/smartdb_secondary?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-    username: root
-    password: rootpass
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:rootpass}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
 # -------------------------------------------

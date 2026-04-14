@@ -1,5 +1,8 @@
 # 🚀 Smart DB Failover API with Caching using JDBC
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Java CI with Maven](https://github.com/seesec/aws-jdbc-cache-demo/actions/workflows/build.yml/badge.svg)](https://github.com/seesec/aws-jdbc-cache-demo/actions/workflows/build.yml)
+
 A production-ready Spring Boot REST API that demonstrates **automatic database failover** and **Redis caching** using pure JDBC (no JPA/Hibernate).
 
 ---
@@ -138,7 +141,14 @@ A **scheduled health check** (every 15 seconds) probes the primary database when
 - Java 17+
 - Maven 3.8+
 
-### Step 1: Start Infrastructure
+### Step 1: Configure Environment
+
+```bash
+# Copy the example environment file
+cp .env.example .env
+```
+
+### Step 2: Start Infrastructure
 
 ```bash
 # Start MySQL (primary + secondary) and Redis
@@ -148,7 +158,7 @@ docker-compose up -d
 docker-compose ps
 ```
 
-### Step 2: Build & Run the Application
+### Step 3: Build & Run the Application
 
 ```bash
 # Build the project
@@ -163,7 +173,7 @@ Or with Java directly:
 java -jar target/failover-api-1.0.0.jar
 ```
 
-### Step 3: Test the API
+### Step 4: Test the API
 
 Open the included premium dashboard!
 Navigate to **http://localhost:8080** to see live system metrics, active databases, and failover/cache trackers.
